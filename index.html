@@ -1,56 +1,146 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Fly Bird Mobile</title>
-<style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;font-family:Arial,"Microsoft YaHei",sans-serif}#game{display:block;width:100vw;height:100dvh;background:linear-gradient(#70cfff,#ecffff);touch-action:none}.note{position:fixed;left:0;right:0;top:calc(10px + env(safe-area-inset-top));text-align:center;color:white;text-shadow:0 2px 5px #000;font-weight:700;pointer-events:none;z-index:2}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <title>实时手势识别</title>
+  <style>
+    html, body { margin:0; width:100%; height:100%; background:#0b0b0f; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; overflow:hidden; }
+    #app { position:relative; width:100vw; height:100dvh; overflow:hidden; }
+    video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+    #panel { position:absolute; top:env(safe-area-inset-top,0); left:0; right:0; z-index:3; padding:14px; pointer-events:none; }
+    #card { display:inline-block; max-width:calc(100vw - 28px); padding:12px 14px; border-radius:16px; background:rgba(0,0,0,.56); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); white-space:pre-line; line-height:1.45; font-size:16px; }
+    #startBtn { position:absolute; left:50%; bottom:calc(28px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:4; border:0; border-radius:999px; padding:14px 24px; font-size:18px; font-weight:700; color:#111; background:#fff; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    #hint { position:absolute; left:14px; right:14px; bottom:calc(90px + env(safe-area-inset-bottom,0px)); z-index:3; color:rgba(255,255,255,.82); font-size:13px; text-align:center; text-shadow:0 1px 8px #000; }
+  </style>
 </head>
 <body>
-<div class="note">点屏幕开始 / 点击让角色上升</div>
-<canvas id="game"></canvas>
-<script>
-(function(){
-const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
-let W,H,dpr,bird,pipes,score,best=Number(localStorage.getItem('flyBirdBest')||0),playing=false,dead=false,frame=0,ground=0;
-function resize(){dpr=Math.min(window.devicePixelRatio||1,2);W=canvas.width=Math.floor(window.innerWidth*dpr);H=canvas.height=Math.floor(window.innerHeight*dpr);ground=Math.max(54*dpr,H*.09);if(!bird)reset(false)}
-function reset(start){bird={x:W*.28,y:H*.45,vy:0,r:Math.max(23*dpr,W*.058)};pipes=[];score=0;frame=0;dead=false;playing=!!start;if(start)addPipe()}
-function addPipe(){const gap=Math.max(165*dpr,H*.26),w=Math.max(58*dpr,W*.16);const max=H-ground-gap-85*dpr;const top=55*dpr+Math.random()*Math.max(1,max-55*dpr);pipes.push({x:W+40*dpr,w,top,gap,done:false})}
-function tap(e){if(e)e.preventDefault();if(!playing||dead){reset(true);return}bird.vy=-Math.max(7.8*dpr,H*.0125)}
-canvas.addEventListener('touchstart',tap,{passive:false});canvas.addEventListener('pointerdown',tap,{passive:false});document.body.addEventListener('touchstart',tap,{passive:false});document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});document.addEventListener('gesturestart',e=>e.preventDefault());
-function hit(p){const r=bird.r*.82;return bird.x+r>p.x&&bird.x-r<p.x+p.w&&(bird.y-r<p.top||bird.y+r>p.top+p.gap)}
-function over(){dead=true;playing=false;best=Math.max(best,score);localStorage.setItem('flyBirdBest',best)}
-function txt(s,size,y){ctx.textAlign='center';ctx.font='800 '+size*dpr+'px Arial';ctx.lineWidth=5*dpr;ctx.strokeStyle='rgba(0,0,0,.5)';ctx.fillStyle='#fff';ctx.strokeText(s,W/2,y);ctx.fillText(s,W/2,y)}
-function drawCharacter(){
-  const r=bird.r,t=performance.now()/140;
-  ctx.save();ctx.translate(bird.x,bird.y);ctx.rotate(Math.max(-.38,Math.min(.45,bird.vy/(16*dpr))));ctx.scale(1+Math.sin(t)*.015,1-Math.sin(t)*.015);
-  ctx.lineWidth=Math.max(2*dpr,r*.06);ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.strokeStyle='#3b3940';
-  ctx.fillStyle='#f8dca4';ctx.beginPath();ctx.arc(0,0,r*.92,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#f4d58c';ctx.beginPath();ctx.arc(-r*.18,-r*.42,r*.78,Math.PI*.05,Math.PI*1.05);ctx.fill();
-  ctx.fillStyle='#f1d28c';for(let i=-4;i<=4;i++){ctx.beginPath();ctx.moveTo(i*r*.18-r*.08,-r*.78);ctx.lineTo(i*r*.12,-r*.12);ctx.lineTo(i*r*.18+r*.08,-r*.78);ctx.fill();}
-  ctx.strokeStyle='#ff8eab';ctx.lineWidth=r*.18;ctx.beginPath();ctx.arc(0,-r*.7,r*.78,Math.PI*1.1,Math.PI*1.9);ctx.stroke();
-  ctx.lineWidth=r*.06;ctx.fillStyle='#ff9ab2';ctx.strokeStyle='#3b3940';
-  ctx.beginPath();ctx.moveTo(-r*.65,-r*.9);ctx.lineTo(-r*.35,-r*1.45);ctx.lineTo(-r*.1,-r*.82);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(r*.65,-r*.9);ctx.lineTo(r*.35,-r*1.45);ctx.lineTo(r*.1,-r*.82);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#bff4ff';ctx.beginPath();ctx.moveTo(-r*.52,-r*.96);ctx.lineTo(-r*.36,-r*1.25);ctx.lineTo(-r*.23,-r*.92);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(r*.52,-r*.96);ctx.lineTo(r*.36,-r*1.25);ctx.lineTo(r*.23,-r*.92);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.fillStyle='#ff9ab2';ctx.strokeStyle='#3b3940';ctx.lineWidth=r*.07;
-  ctx.beginPath();ctx.arc(-r*.88,0,r*.28,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.arc(r*.88,0,r*.28,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.strokeStyle='#3b3940';ctx.lineWidth=r*.055;
-  for(const sx of [-1,1]){for(let k=0;k<5;k++){ctx.beginPath();ctx.moveTo(sx*r*.22,-r*.12+k*r*.03);ctx.lineTo(sx*r*.58,-r*.12+k*r*.03);ctx.stroke();}}
-  ctx.fillStyle='#ffb7c7';ctx.globalAlpha=.75;ctx.beginPath();ctx.ellipse(-r*.42,r*.28,r*.20,r*.12,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(r*.42,r*.28,r*.20,r*.12,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-  ctx.strokeStyle='#3b3940';ctx.lineWidth=r*.06;ctx.beginPath();ctx.moveTo(-r*.10,r*.18);ctx.lineTo(0,r*.36);ctx.lineTo(r*.13,r*.15);ctx.stroke();
-  ctx.fillStyle='#373641';ctx.strokeStyle='#3b3940';ctx.beginPath();ctx.moveTo(-r*.6,r*.78);ctx.lineTo(r*.55,r*.78);ctx.lineTo(r*.75,r*1.35);ctx.lineTo(-r*.75,r*1.35);ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.restore();
-}
-function drawPipe(p){ctx.fillStyle='#29a745';ctx.fillRect(p.x,0,p.w,p.top);ctx.fillRect(p.x,p.top+p.gap,p.w,H-ground-(p.top+p.gap));ctx.fillStyle='#1f8438';ctx.fillRect(p.x-5*dpr,p.top-20*dpr,p.w+10*dpr,20*dpr);ctx.fillRect(p.x-5*dpr,p.top+p.gap,p.w+10*dpr,20*dpr)}
-function loop(){requestAnimationFrame(loop);ctx.clearRect(0,0,W,H);if(playing&&!dead){frame++;bird.vy+=Math.max(.38*dpr,H*.00062);bird.y+=bird.vy;if(frame%96===0)addPipe();pipes.forEach(p=>p.x-=Math.max(2.6*dpr,W*.0068));pipes=pipes.filter(p=>p.x+p.w>-30*dpr);for(const p of pipes){if(!p.done&&p.x+p.w<bird.x){p.done=true;score++}if(hit(p))over()}if(bird.y-bird.r<0||bird.y+bird.r>H-ground)over()}for(const p of pipes)drawPipe(p);ctx.fillStyle='#64b246';ctx.fillRect(0,H-ground,W,12*dpr);ctx.fillStyle='#cc9639';ctx.fillRect(0,H-ground+12*dpr,W,ground);drawCharacter();txt(String(score),42,62*dpr);ctx.font='700 '+16*dpr+'px Arial';ctx.lineWidth=4*dpr;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.strokeText('最高分：'+best,W/2,92*dpr);ctx.fillText('最高分：'+best,W/2,92*dpr);if(!playing&&!dead){txt('Fly Character',32,H*.38);txt('点任意位置开始',20,H*.45)}if(dead){ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(W*.12,H*.34,W*.76,145*dpr);txt('游戏结束',30,H*.40);txt('点任意位置重开',19,H*.47)}}
-window.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,250));resize();reset(false);loop();
-})();
-</script>
+  <div id="app">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="panel"><div id="card">点击“开始识别”，允许摄像头权限。</div></div>
+    <div id="hint">支持 iPhone Safari / Android Chrome。需要 HTTPS。</div>
+    <button id="startBtn">开始识别</button>
+  </div>
+
+  <script type="module">
+    import { GestureRecognizer, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18";
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const card = document.getElementById("card");
+    const startBtn = document.getElementById("startBtn");
+    const hint = document.getElementById("hint");
+
+    let recognizer = null;
+    let drawingUtils = null;
+    let running = false;
+    let lastVideoTime = -1;
+
+    const gestureCN = {
+      None: "未识别",
+      Closed_Fist: "握拳",
+      Open_Palm: "张开手掌",
+      Pointing_Up: "食指向上",
+      Thumb_Down: "拇指向下",
+      Thumb_Up: "拇指向上",
+      Victory: "胜利手势",
+      ILoveYou: "我爱你手势"
+    };
+
+    function setStatus(text) { card.textContent = text; }
+
+    async function loadModel() {
+      setStatus("正在加载识别模型...\n首次打开可能需要几秒。");
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+      recognizer = await GestureRecognizer.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        numHands: 2
+      });
+      drawingUtils = new DrawingUtils(ctx);
+    }
+
+    async function startCamera() {
+      setStatus("正在启动摄像头...");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await new Promise(resolve => { video.onloadedmetadata = resolve; });
+      await video.play();
+      resizeCanvas();
+    }
+
+    function resizeCanvas() {
+      const w = video.videoWidth || window.innerWidth;
+      const h = video.videoHeight || window.innerHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
+
+    function drawResult(result) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!result.landmarks || result.landmarks.length === 0) {
+        setStatus("未检测到手\n请把手放到摄像头前");
+        return;
+      }
+      for (const landmarks of result.landmarks) {
+        drawingUtils.drawConnectors(landmarks, GestureRecognizer.HAND_CONNECTIONS, { lineWidth: 4 });
+        drawingUtils.drawLandmarks(landmarks, { radius: 4 });
+      }
+      const lines = [`检测到 ${result.landmarks.length} 只手`];
+      if (result.gestures && result.gestures.length) {
+        result.gestures.forEach((g, i) => {
+          if (!g || !g[0]) return;
+          const name = g[0].categoryName;
+          const score = Math.round(g[0].score * 100);
+          lines.push(`手 ${i + 1}：${gestureCN[name] || name} / ${score}%`);
+        });
+      } else {
+        lines.push("手势：未识别出明确动作");
+      }
+      setStatus(lines.join("\n"));
+    }
+
+    function loop() {
+      if (!running) return;
+      resizeCanvas();
+      if (video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+        drawResult(recognizer.recognizeForVideo(video, performance.now()));
+      }
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener("click", async () => {
+      try {
+        startBtn.disabled = true;
+        startBtn.textContent = "启动中...";
+        if (!recognizer) await loadModel();
+        await startCamera();
+        running = true;
+        startBtn.style.display = "none";
+        hint.style.display = "none";
+        setStatus("识别中...\n请把手放到摄像头前");
+        loop();
+      } catch (err) {
+        console.error(err);
+        setStatus("启动失败\n请确认：\n1. 使用 HTTPS 打开页面\n2. Safari 已允许摄像头\n3. 网络能加载 MediaPipe 模型");
+        startBtn.disabled = false;
+        startBtn.textContent = "重新开始";
+      }
+    });
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 300));
+  </script>
 </body>
 </html>
